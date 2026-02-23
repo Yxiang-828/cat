@@ -210,9 +210,9 @@
         // 1. Initialize Dagre-D3 Graph
         var g = new dagreD3.graphlib.Graph().setGraph({
             rankdir: 'TB',          // Top to Bottom flow
-            nodesep: 40,            // Horizontal separation between nodes
+            nodesep: 80,            // Horizontal separation between nodes
             ranksep: 70,            // Vertical separation between layers
-            edgesep: 15,            // Separation between edges
+            edgesep: 25,            // Separation between edges
             marginx: 60,
             marginy: 60
         });
@@ -274,7 +274,7 @@
         });
 
         // Subroutine to format Edge Labels elegantly
-        const addEdge = (source, target, polarity, labelText = "", delay = false, weight = 1, labelpos = "c", labeloffset = 0) => {
+        const addEdge = (source, target, polarity, labelText = "", delay = false, weight = 1, labelpos = "c", labeloffset = 0, edgeCurve = d3.curveMonotoneY) => {
             const isPos = polarity === "+";
             let eClass = isPos ? "positive" : "negative";
             if (delay) eClass += " delayed";
@@ -292,8 +292,7 @@
                 weight: weight,
                 labelpos: labelpos,
                 labeloffset: labeloffset,
-                // d3.curveBasis provides smooth curves around obstacles
-                curve: d3.curveBasis
+                curve: edgeCurve
             });
         };
 
@@ -333,10 +332,10 @@
         // Mitigations (Policy is almost always delayed)
         addEdge("NEA", "Greenery", "+", "", true);
 
-        // Use weights and labelpos to prevent edge stacking, so their minus signs are all individually visible.
-        addEdge("Greenery", "NoisePoll", "-", "", false, 1, "l", 20); // Push left
-        addEdge("Greenery", "AirPoll", "-", "", false, 5, "c", 0);   // Keep center, weight 5 to be the core vertical
-        addEdge("Greenery", "Stress", "-", "", false, 1, "r", 20);  // Push right
+        // Balanced weights to center Greenery above its targets, making curves smooth and natural
+        addEdge("Greenery", "NoisePoll", "-", "", false, 2, "c", 0);
+        addEdge("Greenery", "AirPoll", "-", "", false, 2, "c", 0);
+        addEdge("Greenery", "Stress", "-", "", false, 2, "r", 20);
 
         // Health
         addEdge("AirPoll", "Health", "-");
