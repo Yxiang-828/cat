@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Residential QoL Causal Loop Diagram</title>
+    <!-- We use D3.js and Dagre-D3 for guaranteed non-overlapping edge routing -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.4/dagre-d3.min.js"></script>
+    <!-- HTML2Canvas to capture High-Res PNGs for Canva, avoiding SVG HTML embedding issues -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f6f9;
+        }
+
+        svg {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        text {
+            font-weight: 500;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            fill: #222;
+        }
+
+        /* Node Box Styling */
+        .node rect {
+            stroke-width: 2px;
+            rx: 6;
+            ry: 6;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Group Color Profiles */
+        .group-0 rect {
+            fill: #e1f5fe;
+            stroke: #0288d1;
+        }
+
+        /* Policy */
+        .group-1 rect {
+            fill: #fff3e0;
+            stroke: #f57c00;
+        }
+
+        /* Heritage/Tourism */
+        .group-2 rect {
+            fill: #e8f5e9;
+            stroke: #388e3c;
+        }
+
+        /* Commercial/Civic */
+        .group-3 rect {
+            fill: #fce4ec;
+            stroke: #c2185b;
+        }
+
+        /* Urban Env */
+        .group-4 rect {
+            fill: #ede7f6;
+            stroke: #512da8;
+        }
+
+        /* Resident QoL */
+
+        /* Edge Link Styling */
+        .edgePath path {
+            stroke-width: 2px !important;
+            fill: none !important;
+        }
+
+        .positive>path {
+            stroke: #2ca02c !important;
+        }
+
+        .negative>path {
+            stroke: #d62728 !important;
+        }
+
+        .delayed>path {
+            stroke-dasharray: 6, 6;
+        }
+
+        /* Force arrowhead colors by overriding stroke/fill */
+        .edgePath.positive defs marker path,
+        .edgePath.positive marker path {
+            fill: #2ca02c !important;
+            stroke: #2ca02c !important;
+        }
+
+        .edgePath.negative defs marker path,
+        .edgePath.negative marker path {
+            fill: #d62728 !important;
+            stroke: #d62728 !important;
+        }
+
+        /* Edge Label HTML Styling */
+        .edgeLabel div {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .label-pos {
+            color: #2ca02c;
+            font-size: 14px;
+        }
+
+        .label-neg {
+            color: #d62728;
+            font-size: 14px;
+        }
+
+        .label-delay {
+            color: #777;
+            font-weight: normal;
+            margin-left: 4px;
+        }
+
+        .label-desc {
+            display: block;
+            font-size: 11px;
+            color: #555;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Controls Panel */
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #444;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="controls">
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px; color:#222;">Stakeholder Domains</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #e1f5fe; border: 1px solid #0288d1;"></div>Policy & Governance
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #fff3e0; border: 1px solid #f57c00;"></div>Heritage & Tourism
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #e8f5e9; border: 1px solid #388e3c;"></div>Commercial, Civic,
+            Edu
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #fce4ec; border: 1px solid #c2185b;"></div>Urban Environment
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ede7f6; border: 1px solid #512da8;"></div>Resident Well-Being
+        </div>
+        <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+        <div class="legend-item"><span
+                style="color:#2ca02c; font-weight:bold; margin-right:12px; font-size:18px;">+</span> Reinforcing (Same)
+        </div>
+        <div class="legend-item"><span
+                style="color:#d62728; font-weight:bold; margin-right:12px; font-size:18px;">−</span> Balancing
+            (Opposite)</div>
+        <div class="legend-item"><span style="margin-right:10px; font-weight:bold; color:#777;">//</span> Time Delay
+        </div>
+        <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+        <button id="exportBtn" onclick="downloadPNG()"
+            style="width:100%; padding:10px; background:#512da8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">�️
+            Export High-Res PNG</button>
+    </div>
+
+    <svg>
+        <g />
+    </svg>
+
+    <script>
+        // 1. Initialize Dagre-D3 Graph
+        var g = new dagreD3.graphlib.Graph().setGraph({
+            rankdir: 'TB',          // Top to Bottom flow
+            nodesep: 80,            // Horizontal separation between nodes
+            ranksep: 70,            // Vertical separation between layers
+            edgesep: 25,            // Separation between edges
+            marginx: 60,
+            marginy: 60
+        });
+
+        // 2. Define Strict Nodes (based strictly on user's PlantUML spec)
+        const nodes = [
+            // Group 0: Policy & Governance
+            { id: "NHB", label: "NHB Interventions", group: 0 },
+            { id: "Zoning", label: "Heritage Zoning Laws", group: 0 },
+            { id: "NEA", label: "NEA Interventions", group: 0 },
+
+            // Group 1: Heritage & Tourism Ecosystem
+            { id: "Conservation", label: "Level of Heritage Conservation", group: 1 },
+            { id: "Attractions", label: "Density of Tourist Attractions", group: 1 },
+            { id: "Attractiveness", label: "Overall Area Attractiveness", group: 1 },
+            { id: "Tourists", label: "Volume of Tourists", group: 1 },
+
+            // Group 2: Commercial, Civic & Educational
+            { id: "RelSites", label: "Number of Religious Sites", group: 2 },
+            { id: "RelVisitors", label: "Volume of Religious Visitors", group: 2 },
+            { id: "RelEvents", label: "Frequency of Religious Events", group: 2 },
+            { id: "Shops", label: "Number of Commercial Shops", group: 2 },
+            { id: "Edu", label: "Number of Educational Institutions", group: 2 },
+            { id: "Students", label: "Student Population", group: 2 },
+
+            // Group 3: Urban Environment
+            { id: "Congestion", label: "Level of Area Congestion", group: 3 },
+            { id: "Traffic", label: "Traffic Volume", group: 3 },
+            { id: "AirPoll", label: "Level of Air Pollution", group: 3 },
+            { id: "NoisePoll", label: "Level of Noise Pollution", group: 3 },
+            { id: "Greenery", label: "Amount of Green Space", group: 3 },
+            { id: "Amenities", label: "Accessibility of Amenities", group: 3 },
+
+            // Group 4: Resident Well-Being & Culture
+            { id: "QoL", label: "Resident's Quality of Life", group: 4 },
+            { id: "Complaints", label: "Resident Complaints", group: 4 },
+            { id: "Identity", label: "Sense of Identity & Belonging", group: 4 },
+            { id: "CommEvents", label: "Frequency of Community Events", group: 4 },
+            { id: "Stress", label: "Level of Psychological Stress", group: 4 },
+            { id: "Health", label: "Overall Physical Health", group: 4 },
+            { id: "Entertainment", label: "Availability of Entertainment", group: 4 },
+            { id: "Art", label: "Art and Cultural Spaces", group: 4 },
+            { id: "Wellbeing", label: "Personal Well-being", group: 4 }
+            // "Sustainable Environment" node explicitly removed per instructions
+        ];
+
+        // Inject Nodes into Graph Data Structure
+        nodes.forEach(n => {
+            g.setNode(n.id, {
+                label: n.label,
+                class: "group-" + n.group,
+                paddingLeft: 20,
+                paddingRight: 20,
+                paddingTop: 12,
+                paddingBottom: 12,
+                rx: 6,
+                ry: 6
+            });
+        });
+
+        // Subroutine to format Edge Labels elegantly
+        const addEdge = (source, target, polarity, labelText = "", delay = false, weight = 1, labelpos = "c", labeloffset = 0, edgeCurve = d3.curveMonotoneY) => {
+            const isPos = polarity === "+";
+            let eClass = isPos ? "positive" : "negative";
+            if (delay) eClass += " delayed";
+
+            // Use HTML labels to guarantee clear background boxes covering the overlapping lines
+            let labelHtml = `<div><span class="${isPos ? 'label-pos' : 'label-neg'}">${polarity}</span>`;
+            if (delay) labelHtml += `<span class="label-delay">//</span>`;
+            if (labelText) labelHtml += `<span class="label-desc">${labelText}</span>`;
+            labelHtml += `</div>`;
+
+            g.setEdge(source, target, {
+                labelType: "html",
+                label: labelHtml,
+                class: eClass,
+                weight: weight,
+                labelpos: labelpos,
+                labeloffset: labeloffset,
+                curve: edgeCurve
+            });
+        };
+
+        // 3. Define Causal Links exactly as specified
+        // Heritage & Tourism
+        addEdge("NHB", "Conservation", "+");
+        addEdge("NHB", "Zoning", "+");
+        addEdge("Zoning", "Attractions", "-", "Time Delay", true); // Zoning usually delayed effect
+        addEdge("Conservation", "Attractions", "+");
+        addEdge("Conservation", "Identity", "+");
+        addEdge("Attractions", "Attractiveness", "+");
+        addEdge("Attractiveness", "Tourists", "+");
+        addEdge("Tourists", "Congestion", "+");
+        addEdge("Tourists", "NoisePoll", "+");
+        addEdge("Tourists", "Shops", "+");
+
+        // Religious Sites & Commercial
+        addEdge("RelSites", "Shops", "+");
+        addEdge("RelSites", "RelEvents", "+");
+        addEdge("RelEvents", "RelVisitors", "+");
+        addEdge("RelVisitors", "RelEvents", "+");
+        addEdge("RelVisitors", "Congestion", "+");
+        addEdge("RelEvents", "NoisePoll", "+");
+
+        // Urban Density & Congestion
+        addEdge("Edu", "Students", "+");
+        addEdge("Students", "Congestion", "+");
+        addEdge("Traffic", "Congestion", "+");
+        addEdge("Shops", "Traffic", "+");
+        addEdge("Shops", "Congestion", "+");
+
+        // Environment & Health
+        addEdge("Congestion", "AirPoll", "+");
+        addEdge("Congestion", "NoisePoll", "+");
+        addEdge("Congestion", "Amenities", "-");
+
+        // Mitigations (Policy is almost always delayed)
+        addEdge("NEA", "Greenery", "+", "", true);
+
+        // Balanced weights to center Greenery above its targets, making curves smooth and natural
+        addEdge("Greenery", "NoisePoll", "-", "", false, 2, "c", 0);
+        addEdge("Greenery", "AirPoll", "-", "", false, 2, "c", 0);
+        addEdge("Greenery", "Stress", "-", "", false, 2, "r", 20);
+
+        // Health
+        addEdge("AirPoll", "Health", "-");
+        addEdge("NoisePoll", "Stress", "+");
+        addEdge("NoisePoll", "QoL", "-");
+        addEdge("Stress", "Health", "-");
+        addEdge("Health", "QoL", "+");
+        addEdge("Health", "Wellbeing", "+");
+
+        // Quality of Life & Culture
+        addEdge("Amenities", "QoL", "+");
+        addEdge("Art", "Entertainment", "+");
+        addEdge("CommEvents", "Entertainment", "+");
+        addEdge("CommEvents", "Identity", "+");
+        addEdge("Entertainment", "QoL", "+");
+        addEdge("Identity", "QoL", "+");
+
+        // --- The Feedback Loops ---
+        addEdge("QoL", "CommEvents", "+", "R1: Community Engagement");
+        addEdge("Congestion", "Attractiveness", "-", "B1: Tourism Limits");
+        addEdge("QoL", "Complaints", "-", "B2: Civic Action");
+        addEdge("Complaints", "NEA", "+", "Policy Action", true); // Triggering policy is delayed
+        addEdge("Complaints", "NHB", "+", "Policy Action", true);
+
+        // 4. Render Engine execution
+        var render = new dagreD3.render();
+        var svg = d3.select("svg");
+        var svgGroup = svg.select("g");
+
+        // Inject all CSS styles directly into the SVG so it renders perfectly in Canva
+        const styleSheet = document.querySelector('style').textContent;
+        svg.insert("defs", ":first-child").append("style").text(styleSheet);
+
+        // Allow panning/zooming
+        var zoom = d3.zoom().on("zoom", function () {
+            svgGroup.attr("transform", d3.event.transform);
+        });
+        svg.call(zoom);
+
+        // Run the Dagre layout algorithm
+        render(svgGroup, g);
+
+        // Custom arrowhead coloring to match the path stroke
+        svg.selectAll("g.edgePath.positive marker path")
+            .style("fill", "#2ca02c")
+            .style("stroke", "#2ca02c");
+
+        svg.selectAll("g.edgePath.negative marker path")
+            .style("fill", "#d62728")
+            .style("stroke", "#d62728");
+
+        // Center and scale diagram to fit viewport on load
+        var initialScale = 0.8;
+        var graphWidth = g.graph().width * initialScale;
+        var xCenterOffset = (window.innerWidth - graphWidth) / 2;
+        svg.call(zoom.transform, d3.zoomIdentity.translate(xCenterOffset, 40).scale(initialScale));
+
+        // High-Res PNG Export Function for Canva
+        function downloadPNG() {
+            const btn = document.getElementById('exportBtn');
+            btn.style.display = 'none'; // Hide the button from the screenshot
+
+            // Re-center before taking picture
+            svg.call(zoom.transform, d3.zoomIdentity.translate(xCenterOffset, 40).scale(initialScale));
+
+            // Small delay to let the button visually disappear before clipping
+            setTimeout(() => {
+                html2canvas(document.body, {
+                    scale: 3, // 3x resolution for crisp Canva quality without pixilation
+                    backgroundColor: "#f4f6f9"
+                }).then(canvas => {
+                    var link = document.createElement('a');
+                    link.download = 'CLD_Diagram_Canva.png';
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    btn.style.display = 'block'; // Bring button back
+                }).catch(err => {
+                    console.error("Error capturing PNG:", err);
+                    btn.style.display = 'block';
+                });
+            }, 500);
+        }
+
+    </script>
+</body>
+
+</html>
