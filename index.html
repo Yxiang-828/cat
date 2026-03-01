@@ -85,7 +85,6 @@
     <svg><g /></svg>
 
     <script>
-        // Expanded grid matrix to physically untangle crisscrossing lines
         var g = new dagreD3.graphlib.Graph({ multigraph: true }).setGraph({
             rankdir: 'TB', nodesep: 130, ranksep: 180, edgesep: 80, align: 'DL'
         });
@@ -98,7 +97,7 @@
             { id: "Greenery", label: "Urban Greenery/Plants", group: 3 },
             { id: "Traffic", label: "Traffic Volume", group: 3 },
             { id: "Celebration", label: "Freq. of Large Celebrations", group: 3 },
-            { id: "Vehicles", label: "Volume of Delivery Vehicles", group: 3 }, // Updated ID and Label
+            { id: "Vehicles", label: "Volume of Delivery Vehicles", group: 3 },
             { id: "Burning", label: "Volume of Ceremonial Burning", group: 3 },
             { id: "Noise", label: "Level of Noise Pollution", group: 3 },
             { id: "Air", label: "Level of Air Pollution", group: 3 },
@@ -125,7 +124,6 @@
             });
         }
 
-        // --- Core Loops ---
         addE("NEA", "CultEvents", "-", "noise air spirit", true); 
         addE("CultEvents", "Celebration", "+", "noise", true);
         addE("Celebration", "Noise", "+", "noise", true);
@@ -136,26 +134,23 @@
         addE("QoL", "Comp", "-", "noise air spirit", true); 
         addE("Comp", "NEA", "+", "noise air spirit", true);
 
-        // Air Loop Members
         addE("CultEvents", "Burning", "+", "air", true);
         addE("Burning", "Air", "+", "air", true);
         addE("Air", "Phys", "-", "air", true);
         addE("Phys", "QoL", "+", "air", true);
 
-        // Spirit Loop Members 
         addE("CultEvents", "Interactions", "+", "spirit", true);
         addE("Interactions", "Spirit", "+", "spirit", true);
         addE("Spirit", "QoL", "+", "spirit", true); 
 
-        // --- Contextual Support ---
         addE("RelSites", "CultEvents", "+", "spirit noise air");
         addE("RelSites", "PlaceID", "+", "spirit"); 
         addE("PlaceID", "Identity", "+", "spirit");
         addE("Identity", "Spirit", "+", "spirit"); 
         
         addE("RelSites", "Shops", "+", "noise air");
-        addE("Shops", "Vehicles", "+", "noise air"); // Updated reference
-        addE("Vehicles", "Traffic", "+", "noise air"); // Updated reference
+        addE("Shops", "Vehicles", "+", "noise air"); 
+        addE("Vehicles", "Traffic", "+", "noise air"); 
         addE("Traffic", "Air", "+", "air");
         addE("Greenery", "Air", "-", "air");
 
@@ -163,6 +158,9 @@
         var svg = d3.select("svg"), inner = svg.select("g");
         
         render(inner, g);
+
+        // Tracker for overlapping labels
+        var targetCounts = {};
 
         inner.selectAll("g.edgeLabel").each(function(e) {
             var labelGroup = d3.select(this);
@@ -177,7 +175,12 @@
                 var dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist > 0) {
-                    var move = 70; 
+                    if (!targetCounts[e.w]) targetCounts[e.w] = 0;
+                    var stagger = targetCounts[e.w];
+                    targetCounts[e.w]++;
+
+                    // Pushes subsequent labels 35px further back to avoid collision
+                    var move = 70 + (stagger * 35); 
                     var nx = p2.x + (dx / dist) * move;
                     var ny = p2.y + (dy / dist) * move;
                     
