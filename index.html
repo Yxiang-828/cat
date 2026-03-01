@@ -4,45 +4,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bugis System - Cleaned Paths</title>
+    <title>Bugis System - Universal Loop Glow</title>
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.4/dagre-d3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f6f9; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 0; background-color: #f4f6f9;
+            overflow: hidden;
+        }
         svg { width: 100vw; height: 100vh; }
         text { font-weight: 500; font-family: 'Segoe UI', sans-serif; font-size: 14px; fill: #222; }
-
         .node rect { stroke-width: 2px; rx: 6; ry: 6; transition: 0.3s; }
-        .group-0 rect { fill: #e1f5fe; stroke: #0288d1; } 
-        .group-2 rect { fill: #e8f5e9; stroke: #388e3c; } 
-        .group-3 rect { fill: #fce4ec; stroke: #c2185b; } 
-        .group-4 rect { fill: #ede7f6; stroke: #512da8; } 
-
-        /* Updated: Default opacity is now 1 for better visibility on "Show All" */
+        
+        .group-0 rect { fill: #e1f5fe; stroke: #0288d1; }
+        .group-2 rect { fill: #e8f5e9; stroke: #388e3c; }
+        .group-3 rect { fill: #fce4ec; stroke: #c2185b; }
+        .group-4 rect { fill: #ede7f6; stroke: #512da8; }
+        
         .edgePath path { stroke-width: 2.5px !important; fill: none !important; opacity: 1; transition: 0.3s; }
         .positive>path { stroke: #2ca02c !important; }
         .negative>path { stroke: #d62728 !important; }
-        
         .edgePath.positive marker path { fill: #2ca02c !important; }
         .edgePath.negative marker path { fill: #d62728 !important; }
+        
+        .glow-active path {
+            stroke-width: 6px !important;
+            filter: drop-shadow(0 0 6px #1976d2);
+        }
 
         .fade { opacity: 0.1 !important; }
-        .highlight path { stroke-width: 6px !important; opacity: 1 !important; }
+        .highlight path { stroke-width: 5px !important; opacity: 1 !important; }
         .node-active rect { stroke-width: 4px !important; opacity: 1 !important; }
-
-        .edgeLabel div { 
-            background-color: white; border: 1.5px solid #ccc; padding: 4px 8px; 
-            border-radius: 5px; font-size: 16px; font-weight: bold; opacity: 1; transition: 0.3s; 
+        
+        .edgeLabel div {
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 1.5px solid #aaa; padding: 1px 4px; border-radius: 3px;
+            font-size: 11px; font-weight: bold; opacity: 1; transition: 0.3s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
         .label-pos { color: #2ca02c; }
         .label-neg { color: #d62728; }
-        .highlight-label div { opacity: 1 !important; border-color: #000 !important; transform: scale(1.1); }
-
-        #controls { position: absolute; top: 20px; left: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); z-index: 10; width: 240px; }
+        
+        #controls {
+            position: absolute; top: 20px; right: 20px; left: auto; background: white;
+            padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10; width: 260px;
+        }
         .legend-item { display: flex; align-items: center; margin-bottom: 6px; font-size: 12px; color: #444; }
         .legend-color { width: 14px; height: 14px; border-radius: 3px; margin-right: 10px; }
-        button { width: 100%; margin-top: 8px; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; color: white; }
+        
+        button {
+            width: 100%; margin-top: 8px; padding: 10px; border: none;
+            border-radius: 4px; cursor: pointer; font-weight: bold;
+            font-size: 13px; color: white; transition: 0.2s;
+        }
+        button:hover { opacity: 0.8; }
     </style>
 </head>
 
@@ -50,17 +68,16 @@
     <div id="controls">
         <h3 style="margin: 0 0 10px 0; font-size: 15px; color:#222;">Stakeholder Domains</h3>
         <div class="legend-item"><div class="legend-color" style="background: #e1f5fe; border: 1px solid #0288d1;"></div>Policy & Governance</div>
-        <div class="legend-item"><div class="legend-color" style="background: #e8f5e9; border: 1px solid #388e3c;"></div>Commercial & Religious</div>
+        <div class="legend-item"><div class="legend-color" style="background: #e8f5e9; border: 1px solid #388e3c;"></div>Commercial & Cultural</div>
         <div class="legend-item"><div class="legend-color" style="background: #fce4ec; border: 1px solid #c2185b;"></div>Urban Environment</div>
         <div class="legend-item"><div class="legend-color" style="background: #ede7f6; border: 1px solid #512da8;"></div>Resident Well-Being</div>
-        
+
         <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
-        <b>Isolate Pathways</b>
+        <b style="font-size: 13px;">Isolate Loops</b>
         <button style="background:#444" onclick="showAll()">Show All</button>
         <button style="background:#d62728" onclick="isolate('noise')">Noise Pollution Loop</button>
         <button style="background:#1976d2" onclick="isolate('air')">Air Pollution Loop</button>
-        <button style="background:#2ca02c" onclick="isolate('spirit')">Community Spirit Path</button>
-        
+        <button style="background:#2ca02c" onclick="isolate('spirit')">Community Spirit Loop</button>
         <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
         <button id="exportBtn" onclick="downloadPNG()" style="background:#512da8;">Export High-Res PNG</button>
     </div>
@@ -68,105 +85,135 @@
     <svg><g /></svg>
 
     <script>
-        var g = new dagreD3.graphlib.Graph({multigraph: true}).setGraph({ 
-            rankdir: 'TB', 
-            nodesep: 150, 
-            ranksep: 110,
-            align: 'DL' 
+        // Expanded grid matrix to physically untangle crisscrossing lines
+        var g = new dagreD3.graphlib.Graph({ multigraph: true }).setGraph({
+            rankdir: 'TB', nodesep: 130, ranksep: 180, edgesep: 80, align: 'DL'
         });
 
         const nodes = [
-            { id: "NEA", label: "NEA Interventions", group: 0 },
-            { id: "RelSites", label: "Religious Sites", group: 2 },
-            { id: "Shops", label: "Commercial Shops", group: 2 },
-            { id: "RelEvents", label: "Religious Events", group: 2 },
-            { id: "Lorries", label: "Delivery Lorries", group: 3 },
+            { id: "NEA", label: "Freq. of NEA Interventions", group: 0 },
+            { id: "RelSites", label: "Number of Religious Sites", group: 2 },
+            { id: "Shops", label: "Density of Commercial Shops", group: 2 },
+            { id: "CultEvents", label: "Freq. of Cult/Relig Events (CNY, etc.)", group: 2 },
+            { id: "Greenery", label: "Urban Greenery/Plants", group: 3 },
             { id: "Traffic", label: "Traffic Volume", group: 3 },
-            { id: "Burning", label: "Burning of Stuff", group: 3 },
-            { id: "Celebration", label: "Celebrations", group: 3 },
-            { id: "Noise", label: "Noise Pollution", group: 3 },
-            { id: "Air", label: "Air Pollution", group: 3 },
-            { id: "Psych", label: "Psychological Health", group: 4 },
-            { id: "Phys", label: "Physical Health", group: 4 },
-            { id: "Identity", label: "Identity & Belonging", group: 4 },
-            { id: "Spirit", label: "Community Spirit", group: 4 },
-            { id: "QoL", label: "Resident QoL", group: 4 },
-            { id: "Comp", label: "Resident Complaints", group: 4 }
+            { id: "Celebration", label: "Freq. of Large Celebrations", group: 3 },
+            { id: "Vehicles", label: "Volume of Delivery Vehicles", group: 3 }, // Updated ID and Label
+            { id: "Burning", label: "Volume of Ceremonial Burning", group: 3 },
+            { id: "Noise", label: "Level of Noise Pollution", group: 3 },
+            { id: "Air", label: "Level of Air Pollution", group: 3 },
+            { id: "Psych", label: "Level of Psychological Health", group: 4 },
+            { id: "Phys", label: "Level of Physical Health", group: 4 },
+            { id: "PlaceID", label: "Precinct Place Identity (Landmarks)", group: 4 },
+            { id: "Interactions", label: "Neighbourly Interactions", group: 4 },
+            { id: "Identity", label: "Sense of Identity & Belonging", group: 4 },
+            { id: "Spirit", label: "Level of Community Spirit", group: 4 },
+            { id: "QoL", label: "Resident Quality of Life", group: 4 },
+            { id: "Comp", label: "Freq. of Resident Complaints", group: 4 }
         ];
 
         nodes.forEach(n => {
-            g.setNode(n.id, { label: n.label, class: "group-" + n.group, id: "node-" + n.id, paddingLeft: 15, paddingRight: 15, paddingTop: 10, paddingBottom: 10 });
+            g.setNode(n.id, { label: n.label, class: "group-" + n.group, id: "node-" + n.id, paddingLeft: 18, paddingRight: 18, paddingTop: 12, paddingBottom: 12 });
         });
 
-        function addE(s, t, p, sys, curve = d3.curveBasis, weight = 1) {
+        function addE(s, t, p, sys, isMember = false) {
             let labelHtml = `<div><span class="${p === '+' ? 'label-pos' : 'label-neg'}">${p}</span></div>`;
-            g.setEdge(s, t, { 
-                labelType: "html", 
-                label: labelHtml, 
-                class: (p === "+" ? "positive " : "negative ") + sys,
-                curve: curve,
-                weight: weight
+            g.setEdge(s, t, {
+                labelType: "html", label: labelHtml,
+                class: (p === "+" ? "positive " : "negative ") + sys + (isMember ? " loop-member" : ""),
+                curve: d3.curveBasis
             });
         }
 
-        addE("QoL", "Comp", "-", "noise air");
-        addE("Comp", "NEA", "+", "noise air", d3.curveBundle.beta(1.0), 10);
+        // --- Core Loops ---
+        addE("NEA", "CultEvents", "-", "noise air spirit", true); 
+        addE("CultEvents", "Celebration", "+", "noise", true);
+        addE("Celebration", "Noise", "+", "noise", true);
+        addE("CultEvents", "Traffic", "+", "noise", true);
+        addE("Traffic", "Noise", "+", "noise", true);
+        addE("Noise", "Psych", "-", "noise", true);
+        addE("Psych", "QoL", "+", "noise", true);
+        addE("QoL", "Comp", "-", "noise air spirit", true); 
+        addE("Comp", "NEA", "+", "noise air spirit", true);
+
+        // Air Loop Members
+        addE("CultEvents", "Burning", "+", "air", true);
+        addE("Burning", "Air", "+", "air", true);
+        addE("Air", "Phys", "-", "air", true);
+        addE("Phys", "QoL", "+", "air", true);
+
+        // Spirit Loop Members 
+        addE("CultEvents", "Interactions", "+", "spirit", true);
+        addE("Interactions", "Spirit", "+", "spirit", true);
+        addE("Spirit", "QoL", "+", "spirit", true); 
+
+        // --- Contextual Support ---
+        addE("RelSites", "CultEvents", "+", "spirit noise air");
+        addE("RelSites", "PlaceID", "+", "spirit"); 
+        addE("PlaceID", "Identity", "+", "spirit");
+        addE("Identity", "Spirit", "+", "spirit"); 
+        
         addE("RelSites", "Shops", "+", "noise air");
-        addE("RelSites", "RelEvents", "+", "noise air spirit");
-        addE("Shops", "Lorries", "+", "noise air");
-        addE("RelEvents", "Lorries", "+", "noise air");
-        addE("Lorries", "Traffic", "+", "noise air");
-        addE("RelEvents", "Burning", "+", "air");
-        addE("Burning", "Air", "+", "air");
+        addE("Shops", "Vehicles", "+", "noise air"); // Updated reference
+        addE("Vehicles", "Traffic", "+", "noise air"); // Updated reference
         addE("Traffic", "Air", "+", "air");
-        addE("Air", "Phys", "-", "air");
-        addE("Phys", "QoL", "+", "air");
-        addE("NEA", "Air", "-", "air", d3.curveBundle.beta(0.4), 1);
-        addE("RelEvents", "Celebration", "+", "noise");
-        addE("Celebration", "Noise", "+", "noise", d3.curveBundle.beta(0.5), 1);
-        addE("Traffic", "Noise", "+", "noise", d3.curveBundle.beta(1.0), 5); 
-        addE("Noise", "Psych", "-", "noise");
-        addE("Psych", "QoL", "+", "noise");
-        addE("NEA", "Noise", "-", "noise", d3.curveBundle.beta(0.4), 1);
-        addE("RelEvents", "Identity", "+", "spirit");
-        addE("Identity", "Spirit", "+", "spirit");
-        addE("Spirit", "QoL", "+", "spirit");
+        addE("Greenery", "Air", "-", "air");
 
         var render = new dagreD3.render();
         var svg = d3.select("svg"), inner = svg.select("g");
+        
         render(inner, g);
 
-        function isolate(sys) {
-            // Apply fade to everything first
-            svg.selectAll(".edgePath, .node, .edgeLabel").classed("fade", true).classed("highlight", false).classed("node-active", false).classed("highlight-label", false);
+        inner.selectAll("g.edgeLabel").each(function(e) {
+            var labelGroup = d3.select(this);
+            var edge = g.edge(e.v, e.w);
             
-            let activeEdges = svg.selectAll(".edgePath").filter(function() { return d3.select(this).attr("class").includes(sys); });
+            if (edge.points && edge.points.length >= 2) {
+                var p1 = edge.points[edge.points.length - 2];
+                var p2 = edge.points[edge.points.length - 1]; 
+                
+                var dx = p1.x - p2.x;
+                var dy = p1.y - p2.y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    var move = 70; 
+                    var nx = p2.x + (dx / dist) * move;
+                    var ny = p2.y + (dy / dist) * move;
+                    
+                    labelGroup.attr("transform", "translate(" + nx + "," + ny + ")");
+                    this.parentNode.appendChild(this);
+                }
+            }
+        });
+
+        function isolate(sys) {
+            svg.selectAll(".edgePath, .node, .edgeLabel").classed("fade", true).classed("highlight", false).classed("node-active", false).classed("glow-active", false);
+            let activeEdges = svg.selectAll(".edgePath").filter(function () { return d3.select(this).attr("class").includes(sys); });
             activeEdges.classed("fade", false).classed("highlight", true);
             
-            activeEdges.each(function(d) {
-                svg.selectAll(".edgeLabel").filter(l => l.v === d.v && l.w === d.w).classed("fade", false).classed("highlight-label", true);
+            activeEdges.filter(function() { 
+                return d3.select(this).attr("class").includes("loop-member"); 
+            }).classed("glow-active", true);
+
+            activeEdges.each(function (d) {
+                svg.selectAll(".edgeLabel").filter(l => l.v === d.v && l.w === d.w).classed("fade", false);
                 d3.select("#node-" + d.v).classed("fade", false).classed("node-active", true);
                 d3.select("#node-" + d.w).classed("fade", false).classed("node-active", true);
             });
         }
 
-        // Updated showAll to ensure transparency is removed from all components
         function showAll() {
-            svg.selectAll(".edgePath, .node, .edgeLabel")
-               .classed("fade", false)
-               .classed("highlight", false)
-               .classed("node-active", false)
-               .classed("highlight-label", false);
+            svg.selectAll(".edgePath, .node, .edgeLabel").classed("fade", false).classed("highlight", false).classed("node-active", false).classed("glow-active", false);
         }
 
         var zoom = d3.zoom().on("zoom", () => inner.attr("transform", d3.event.transform));
-        svg.call(zoom);
-        svg.call(zoom.transform, d3.zoomIdentity.translate(window.innerWidth / 4, 30).scale(0.55));
+        svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(window.innerWidth / 8, 50).scale(0.55));
 
         function downloadPNG() {
             html2canvas(document.body, { scale: 3, backgroundColor: "#f4f6f9" }).then(canvas => {
                 var link = document.createElement('a');
-                link.download = 'Bugis_Full_System.png';
+                link.download = 'Bugis_System_Final.png';
                 link.href = canvas.toDataURL();
                 link.click();
             });
