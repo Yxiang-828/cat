@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bugis System - Universal Loop Glow</title>
+    <title>Bugis System - Single Slide Vertical</title>
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.4/dagre-d3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -16,12 +16,28 @@
         }
         svg { width: 100vw; height: 100vh; }
         text { font-weight: 500; font-family: 'Segoe UI', sans-serif; font-size: 14px; fill: #222; }
+        
         .node rect { stroke-width: 2px; rx: 6; ry: 6; transition: 0.3s; }
         
         .group-0 rect { fill: #e1f5fe; stroke: #0288d1; }
         .group-2 rect { fill: #e8f5e9; stroke: #388e3c; }
         .group-3 rect { fill: #fce4ec; stroke: #c2185b; }
         .group-4 rect { fill: #ede7f6; stroke: #512da8; }
+
+        /* Row / Cluster Styling */
+        .cluster rect {
+            fill: rgba(230, 238, 248, 0.4);
+            stroke: #a0b2c0;
+            stroke-width: 2px;
+            stroke-dasharray: 6, 6;
+            rx: 12; ry: 12;
+        }
+        .cluster text {
+            font-weight: 700;
+            font-size: 16px;
+            fill: #334e68;
+            letter-spacing: 0.5px;
+        }
         
         .edgePath path { stroke-width: 2.5px !important; fill: none !important; opacity: 1; transition: 0.3s; }
         .positive>path { stroke: #2ca02c !important; }
@@ -47,11 +63,21 @@
         .label-pos { color: #2ca02c; }
         .label-neg { color: #d62728; }
         
+        /* Floating Control Panels */
         #controls {
-            position: absolute; top: 20px; right: 20px; left: auto; background: white;
+            position: absolute; top: 20px; right: 20px; background: white;
             padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 10; width: 260px;
+            z-index: 10; width: 260px; transition: opacity 0.3s;
         }
+        
+        #miniToggle {
+            position: absolute; top: 20px; right: 20px; background: white;
+            padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 5; cursor: pointer; font-weight: bold; font-size: 14px; color: #444;
+            display: none; border: 1px solid #ccc;
+        }
+        #miniToggle:hover { background: #f4f6f9; }
+
         .legend-item { display: flex; align-items: center; margin-bottom: 6px; font-size: 12px; color: #444; }
         .legend-color { width: 14px; height: 14px; border-radius: 3px; margin-right: 10px; }
         
@@ -61,12 +87,23 @@
             font-size: 13px; color: white; transition: 0.2s;
         }
         button:hover { opacity: 0.8; }
+        
+        .hide-panel-btn {
+            background: none; border: none; color: #888; font-size: 12px; font-weight: bold;
+            text-align: right; padding: 0; margin-bottom: 10px; cursor: pointer;
+            width: auto; float: right;
+        }
+        .hide-panel-btn:hover { color: #d62728; background: none; opacity: 1;}
     </style>
 </head>
 
 <body>
+    <div id="miniToggle" onclick="toggleMenu()">⚙️ Show Controls</div>
+
     <div id="controls">
-        <h3 style="margin: 0 0 10px 0; font-size: 15px; color:#222;">Stakeholder Domains</h3>
+        <button class="hide-panel-btn" onclick="toggleMenu()">[Hide Panel]</button>
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color:#222; clear: both;">Stakeholder Domains</h3>
+        
         <div class="legend-item"><div class="legend-color" style="background: #e1f5fe; border: 1px solid #0288d1;"></div>Policy & Governance</div>
         <div class="legend-item"><div class="legend-color" style="background: #e8f5e9; border: 1px solid #388e3c;"></div>Commercial & Cultural</div>
         <div class="legend-item"><div class="legend-color" style="background: #fce4ec; border: 1px solid #c2185b;"></div>Urban Environment</div>
@@ -85,36 +122,71 @@
     <svg><g /></svg>
 
     <script>
-        var g = new dagreD3.graphlib.Graph({ multigraph: true }).setGraph({
-            rankdir: 'TB', nodesep: 130, ranksep: 180, edgesep: 80, align: 'DL'
+        // Toggle Panel Function
+        function toggleMenu() {
+            var controls = document.getElementById('controls');
+            var mini = document.getElementById('miniToggle');
+            if (controls.style.display === 'none') {
+                controls.style.display = 'block';
+                mini.style.display = 'none';
+            } else {
+                controls.style.display = 'none';
+                mini.style.display = 'block';
+            }
+        }
+
+        // ENABLE COMPOUND GRAPHS FOR CLUSTERING (Top-to-Bottom Layout)
+        var g = new dagreD3.graphlib.Graph({ multigraph: true, compound: true }).setGraph({
+            rankdir: 'TB',     
+            nodesep: 40,       
+            ranksep: 60,       
+            edgesep: 25,
+            marginx: 40,
+            marginy: 40
         });
 
+        // 1. Define the 3 Row Clusters
+        g.setNode("Catalysts", { label: "1. The Catalysts", clusterLabelPos: 'top' });
+        g.setNode("Activities", { label: "2. The Activities", clusterLabelPos: 'top' });
+        g.setNode("Outcomes", { label: "3. The Outcomes", clusterLabelPos: 'top' });
+
+        // 2. Define Nodes with their assigned Rows
         const nodes = [
-            { id: "NEA", label: "Freq. of NEA Interventions", group: 0 },
-            { id: "RelSites", label: "Number of Religious Sites", group: 2 },
-            { id: "Shops", label: "Density of Commercial Shops", group: 2 },
-            { id: "CultEvents", label: "Freq. of Cult/Relig Events (CNY, etc.)", group: 2 },
-            { id: "Greenery", label: "Urban Greenery/Plants", group: 3 },
-            { id: "Traffic", label: "Traffic Volume", group: 3 },
-            { id: "Celebration", label: "Freq. of Large Celebrations", group: 3 },
-            { id: "Vehicles", label: "Volume of Delivery Vehicles", group: 3 },
-            { id: "Burning", label: "Volume of Ceremonial Burning", group: 3 },
-            { id: "Noise", label: "Level of Noise Pollution", group: 3 },
-            { id: "Air", label: "Level of Air Pollution", group: 3 },
-            { id: "Psych", label: "Level of Psychological Health", group: 4 },
-            { id: "Phys", label: "Level of Physical Health", group: 4 },
-            { id: "PlaceID", label: "Precinct Place Identity (Landmarks)", group: 4 },
-            { id: "Interactions", label: "Neighbourly Interactions", group: 4 },
-            { id: "Identity", label: "Sense of Identity & Belonging", group: 4 },
-            { id: "Spirit", label: "Level of Community Spirit", group: 4 },
-            { id: "QoL", label: "Resident Quality of Life", group: 4 },
-            { id: "Comp", label: "Freq. of Resident Complaints", group: 4 }
+            { id: "RelSites", label: "Number of Religious Sites", group: 2, parent: "Catalysts" },
+            { id: "Shops", label: "Density of Commercial Shops", group: 2, parent: "Catalysts" },
+            { id: "Greenery", label: "Urban Greenery/Plants", group: 3, parent: "Catalysts" },
+            { id: "PlaceID", label: "Precinct Place Identity (Landmarks)", group: 4, parent: "Catalysts" },
+            { id: "NEA", label: "Freq. of NEA Interventions", group: 0, parent: "Catalysts" },
+
+            { id: "CultEvents", label: "Freq. of Cult/Relig Events (CNY, etc.)", group: 2, parent: "Activities" },
+            { id: "Traffic", label: "Traffic Volume", group: 3, parent: "Activities" },
+            { id: "Celebration", label: "Freq. of Large Celebrations", group: 3, parent: "Activities" },
+            { id: "Vehicles", label: "Volume of Delivery Vehicles", group: 3, parent: "Activities" },
+            { id: "Burning", label: "Volume of Ceremonial Burning", group: 3, parent: "Activities" },
+            { id: "Interactions", label: "Neighbourly Interactions", group: 4, parent: "Activities" },
+            { id: "Identity", label: "Sense of Identity & Belonging", group: 4, parent: "Activities" },
+
+            { id: "Noise", label: "Level of Noise Pollution", group: 3, parent: "Outcomes" },
+            { id: "Air", label: "Level of Air Pollution", group: 3, parent: "Outcomes" },
+            { id: "Psych", label: "Level of Psychological Health", group: 4, parent: "Outcomes" },
+            { id: "Phys", label: "Level of Physical Health", group: 4, parent: "Outcomes" },
+            { id: "Spirit", label: "Level of Community Spirit", group: 4, parent: "Outcomes" },
+            { id: "QoL", label: "Resident Quality of Life", group: 4, parent: "Outcomes" },
+            { id: "Comp", label: "Freq. of Resident Complaints", group: 4, parent: "Outcomes" }
         ];
 
+        // 3. Register Nodes and Assign to Parents
         nodes.forEach(n => {
-            g.setNode(n.id, { label: n.label, class: "group-" + n.group, id: "node-" + n.id, paddingLeft: 18, paddingRight: 18, paddingTop: 12, paddingBottom: 12 });
+            g.setNode(n.id, { 
+                label: n.label, 
+                class: "group-" + n.group, 
+                id: "node-" + n.id, 
+                paddingLeft: 18, paddingRight: 18, paddingTop: 12, paddingBottom: 12 
+            });
+            g.setParent(n.id, n.parent);
         });
 
+        // 4. Edges
         function addE(s, t, p, sys, isMember = false) {
             let labelHtml = `<div><span class="${p === '+' ? 'label-pos' : 'label-neg'}">${p}</span></div>`;
             g.setEdge(s, t, {
@@ -154,19 +226,19 @@
         addE("Traffic", "Air", "+", "air");
         addE("Greenery", "Air", "-", "air");
 
+        // 5. Render
         var render = new dagreD3.render();
         var svg = d3.select("svg"), inner = svg.select("g");
         
         render(inner, g);
 
-        // Tracker for overlapping labels
+        // 6. Label Collision Management
         var targetCounts = {};
-
         inner.selectAll("g.edgeLabel").each(function(e) {
             var labelGroup = d3.select(this);
             var edge = g.edge(e.v, e.w);
             
-            if (edge.points && edge.points.length >= 2) {
+            if (edge && edge.points && edge.points.length >= 2) {
                 var p1 = edge.points[edge.points.length - 2];
                 var p2 = edge.points[edge.points.length - 1]; 
                 
@@ -179,8 +251,7 @@
                     var stagger = targetCounts[e.w];
                     targetCounts[e.w]++;
 
-                    // Pushes subsequent labels 35px further back to avoid collision
-                    var move = 70 + (stagger * 35); 
+                    var move = 40 + (stagger * 20); 
                     var nx = p2.x + (dx / dist) * move;
                     var ny = p2.y + (dy / dist) * move;
                     
@@ -190,6 +261,7 @@
             }
         });
 
+        // 7. Interactive Controls
         function isolate(sys) {
             svg.selectAll(".edgePath, .node, .edgeLabel").classed("fade", true).classed("highlight", false).classed("node-active", false).classed("glow-active", false);
             let activeEdges = svg.selectAll(".edgePath").filter(function () { return d3.select(this).attr("class").includes(sys); });
@@ -200,7 +272,7 @@
             }).classed("glow-active", true);
 
             activeEdges.each(function (d) {
-                svg.selectAll(".edgeLabel").filter(l => l.v === d.v && l.w === d.w).classed("fade", false);
+                svg.selectAll(".edgeLabel").filter(l => l && l.v === d.v && l.w === d.w).classed("fade", false);
                 d3.select("#node-" + d.v).classed("fade", false).classed("node-active", true);
                 d3.select("#node-" + d.w).classed("fade", false).classed("node-active", true);
             });
@@ -210,16 +282,39 @@
             svg.selectAll(".edgePath, .node, .edgeLabel").classed("fade", false).classed("highlight", false).classed("node-active", false).classed("glow-active", false);
         }
 
+        // 8. Zoom and Panning
         var zoom = d3.zoom().on("zoom", () => inner.attr("transform", d3.event.transform));
-        svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(window.innerWidth / 8, 50).scale(0.55));
+        
+        var initialScale = 0.55;
+        var startX = (window.innerWidth / 2) - 350; 
+        svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(startX, 40).scale(initialScale));
 
+        // Note: html2canvas has trouble rendering dynamically hidden elements sometimes. 
+        // We hide the button briefly during export.
         function downloadPNG() {
-            html2canvas(document.body, { scale: 3, backgroundColor: "#f4f6f9" }).then(canvas => {
-                var link = document.createElement('a');
-                link.download = 'Bugis_System_Final.png';
-                link.href = canvas.toDataURL();
-                link.click();
-            });
+            var controls = document.getElementById('controls');
+            var mini = document.getElementById('miniToggle');
+            var isHidden = controls.style.display === 'none';
+            
+            // Hide everything for a clean screenshot
+            controls.style.display = 'none';
+            mini.style.display = 'none';
+
+            setTimeout(() => {
+                html2canvas(document.body, { scale: 3, backgroundColor: "#f4f6f9" }).then(canvas => {
+                    var link = document.createElement('a');
+                    link.download = 'Bugis_System_Vertical_Slide.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    
+                    // Restore UI state
+                    if (isHidden) {
+                        mini.style.display = 'block';
+                    } else {
+                        controls.style.display = 'block';
+                    }
+                });
+            }, 100);
         }
     </script>
 </body>
